@@ -1,0 +1,1 @@
+${await window.fs.readFile('/home/phiality/Downloads/puppeteer/Dockerfile', { encoding: 'utf8' })}
