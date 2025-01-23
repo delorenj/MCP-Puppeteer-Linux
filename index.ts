@@ -1,0 +1,1 @@
+${await window.fs.readFile('/home/phiality/Downloads/puppeteer/index.ts', { encoding: 'utf8' })}
