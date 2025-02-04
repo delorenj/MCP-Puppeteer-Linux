@@ -1,1 +1,42 @@
-${await window.fs.readFile('/home/phiality/Downloads/puppeteer/package.json', { encoding: 'utf8' })}
+{
+  "name": "mcp-puppeteer-linux",
+  "version": "0.1.0",
+  "description": "A Model Context Protocol server for browser automation using Puppeteer with Linux display server support",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "puppeteer",
+    "mcp",
+    "browser-automation",
+    "linux",
+    "x11",
+    "wayland"
+  ],
+  "author": "PhialsBasement",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "puppeteer": "latest",
+    "ts-node": "latest",
+    "typescript": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PhialsBasement/MCP-Puppeteer-Linux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PhialsBasement/MCP-Puppeteer-Linux/issues"
+  }
+}
