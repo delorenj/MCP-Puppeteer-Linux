@@ -1,9 +1,12 @@
 # MCP-Puppeteer-Linux
+
 [![smithery badge](https://smithery.ai/badge/@PhialsBasement/mcp-puppeteer-linux)](https://smithery.ai/server/@PhialsBasement/mcp-puppeteer-linux)
 A Model Context Protocol server that provides browser automation capabilities using Puppeteer, with full support for Linux display servers (X11 and Wayland). This server enables LLMs to interact with web pages, take screenshots, and execute JavaScript in a real browser environment.
 
 ## Display Server Support
+
 This fork adds automatic detection and configuration for Linux display servers:
+
 - Automatic X11/Wayland detection
 - Dynamic environment variable configuration
 - Support for various desktop environments (GNOME, KDE, etc.)
@@ -11,7 +14,9 @@ This fork adds automatic detection and configuration for Linux display servers:
 - XWayland compatibility
 
 ## Components
+
 ### Tools
+
 - **puppeteer_navigate**
   - Navigate to any URL in the browser
   - Input: `url` (string)
@@ -43,7 +48,9 @@ This fork adds automatic detection and configuration for Linux display servers:
   - Input: `script` (string): JavaScript code to execute
 
 ### Resources
+
 The server provides access to two types of resources:
+
 1. **Console Logs** (`console://logs`)
    - Browser console output in text format
    - Includes all console messages from the browser
@@ -52,6 +59,7 @@ The server provides access to two types of resources:
    - Accessible via the screenshot name specified during capture
 
 ## Key Features
+
 - Browser automation with Linux display server support
 - Automatic X11/Wayland detection and configuration
 - Console log monitoring
@@ -60,13 +68,15 @@ The server provides access to two types of resources:
 - Basic web interaction (navigation, clicking, form filling)
 
 ## Configuration
+
 ### Claude Desktop Configuration
+
 ```json
 {
   "mcpServers": {
     "puppeteer": {
-      "command": "npx",
-      "args": ["ts-node", "/path/to/index.ts"]
+      "command": "pnpm",
+      "args": ["start"]
     }
   }
 }
@@ -83,25 +93,31 @@ npx -y @smithery/cli install @PhialsBasement/mcp-puppeteer-linux --client claude
 ```
 
 ### Manual Installation
+
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/PhialsBasement/MCP-Puppeteer-Linux.git
 ```
 
 2. Install dependencies:
+
 ```bash
-npm install
+pnpm install
 ```
 
 3. Start the server:
+
 ```bash
-ts-node index.ts
+pnpm start
 ```
 
 ## Display Server Details
+
 The server automatically detects and configures the appropriate display environment:
 
 ### Wayland Support
+
 - Detects Wayland sessions via `WAYLAND_DISPLAY`
 - Configures necessary environment variables:
   - `WAYLAND_DISPLAY`
@@ -111,6 +127,7 @@ The server automatically detects and configures the appropriate display environm
   - `XDG_SESSION_TYPE`
 
 ### X11 Support
+
 - Fallback for traditional X11 sessions
 - Handles X11-specific variables:
   - `DISPLAY`
@@ -118,4 +135,5 @@ The server automatically detects and configures the appropriate display environm
 - Supports various desktop environments and window managers
 
 ## License
+
 This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software, subject to the terms and conditions of the MIT License. For more details, please see the LICENSE file in the project repository.

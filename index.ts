@@ -13,6 +13,10 @@ function getX11Environment() {
   try {
     // Try to get the current user
     const username = execSync('whoami').toString().trim();
+    const uid = process.getuid?.();
+    if (uid === undefined) {
+      throw new Error('Could not get user ID');
+    }
 
     // First, check for KDE's kwin_x11
     let psOutput = execSync(`ps aux | grep -i "kwin_x11" | grep "${username}"`).toString();
@@ -38,7 +42,7 @@ function getX11Environment() {
       return {
         ...process.env,
         DISPLAY: ':0',
-        XAUTHORITY: `/run/user/${process.getuid()}/gdm/Xauthority`
+        XAUTHORITY: `/run/user/${uid}/gdm/Xauthority`
       };
     }
 
@@ -64,7 +68,7 @@ function getX11Environment() {
     if (!env.XAUTHORITY) {
       try {
         const xauthLocations = [
-          `/run/user/${process.getuid()}/gdm/Xauthority`,
+          `/run/user/${uid}/gdm/Xauthority`,
           `${process.env.HOME}/.Xauthority`,
           '/tmp/.docker.xauth',
           ...execSync('find /tmp -maxdepth 1 -name "xauth*" 2>/dev/null').toString().split('\n')
@@ -185,12 +189,12 @@ const TOOLS = [
 ];
 
 // Global state
-let browser;
-let page;
-const consoleLogs = [];
-const screenshots = new Map();
+let browser: puppeteer.Browser | undefined;
+let page: puppeteer.Page | undefined;
+const consoleLogs: string[] = [];
+const screenshots = new Map<string, string>();
 
-async function ensureBrowser() {
+async function ensureBrowser(): Promise<puppeteer.Page> {
   if (!browser) {
     browser = await puppeteer.launch({
       headless: false,
@@ -207,187 +211,209 @@ async function ensureBrowser() {
       });
     });
   }
+  if (!page) {
+    throw new Error("Failed to initialize page");
+  }
   return page;
 }
 
-async function handleToolCall(name, args) {
+async function handleToolCall(name: string, args: Record<string, any>) {
   const page = await ensureBrowser();
-  switch (name) {
-    case "puppeteer_navigate":
-      await page.goto(args.url);
-      return {
-        content: [{
-          type: "text",
-          text: `Navigated to ${args.url}`,
-        }],
-        isError: false,
-      };
-    case "puppeteer_screenshot": {
-      const width = args.width ?? 800;
-      const height = args.height ?? 600;
-      await page.setViewport({ width, height });
-      const screenshot = await (args.selector ?
-      (await page.$(args.selector))?.screenshot({ encoding: "base64" }) :
-      page.screenshot({ encoding: "base64", fullPage: false }));
-      if (!screenshot) {
+  try {
+    switch (name) {
+      case "puppeteer_navigate":
+        await page.goto(args.url);
         return {
           content: [{
             type: "text",
-            text: args.selector ? `Element not found: ${args.selector}` : "Screenshot failed",
-          }],
-          isError: true,
-        };
-      }
-      screenshots.set(args.name, screenshot);
-      server.notification({
-        method: "notifications/resources/list_changed",
-      });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Screenshot '${args.name}' taken at ${width}x${height}`,
-          },
-          {
-            type: "image",
-            data: screenshot,
-            mimeType: "image/png",
-          },
-        ],
-        isError: false,
-      };
-    }
-    case "puppeteer_click":
-      try {
-        await page.click(args.selector);
-        return {
-          content: [{
-            type: "text",
-            text: `Clicked: ${args.selector}`,
+            text: `Navigated to ${args.url}`,
           }],
           isError: false,
         };
-      }
-      catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: `Failed to click ${args.selector}: ${error.message}`,
-          }],
-          isError: true,
-        };
-      }
-    case "puppeteer_fill":
-      try {
-        await page.waitForSelector(args.selector);
-        await page.type(args.selector, args.value);
-        return {
-          content: [{
-            type: "text",
-            text: `Filled ${args.selector} with: ${args.value}`,
-          }],
-          isError: false,
-        };
-      }
-      catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: `Failed to fill ${args.selector}: ${error.message}`,
-          }],
-          isError: true,
-        };
-      }
-    case "puppeteer_select":
-      try {
-        await page.waitForSelector(args.selector);
-        await page.select(args.selector, args.value);
-        return {
-          content: [{
-            type: "text",
-            text: `Selected ${args.selector} with: ${args.value}`,
-          }],
-          isError: false,
-        };
-      }
-      catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: `Failed to select ${args.selector}: ${error.message}`,
-          }],
-          isError: true,
-        };
-      }
-    case "puppeteer_hover":
-      try {
-        await page.waitForSelector(args.selector);
-        await page.hover(args.selector);
-        return {
-          content: [{
-            type: "text",
-            text: `Hovered ${args.selector}`,
-          }],
-          isError: false,
-        };
-      }
-      catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: `Failed to hover ${args.selector}: ${error.message}`,
-          }],
-          isError: true,
-        };
-      }
-    case "puppeteer_evaluate":
-      try {
-        const result = await page.evaluate((script) => {
-          const logs = [];
-          const originalConsole = { ...console };
-          ['log', 'info', 'warn', 'error'].forEach(method => {
-            console[method] = (...args) => {
-              logs.push(`[${method}] ${args.join(' ')}`);
-              originalConsole[method](...args);
-            };
-          });
-          try {
-            const result = eval(script);
-            Object.assign(console, originalConsole);
-            return { result, logs };
-          }
-          catch (error) {
-            Object.assign(console, originalConsole);
-            throw error;
-          }
-        }, args.script);
+      case "puppeteer_screenshot": {
+        const width = args.width ?? 800;
+        const height = args.height ?? 600;
+        await page.setViewport({ width, height });
+        const screenshot = await (args.selector ?
+        (await page.$(args.selector))?.screenshot({ encoding: "base64" }) :
+        page.screenshot({ encoding: "base64", fullPage: false }));
+        if (!screenshot) {
+          return {
+            content: [{
+              type: "text",
+              text: args.selector ? `Element not found: ${args.selector}` : "Screenshot failed",
+            }],
+            isError: true,
+          };
+        }
+        screenshots.set(args.name, screenshot);
+        server.notification({
+          method: "notifications/resources/list_changed",
+        });
         return {
           content: [
             {
               type: "text",
-              text: `Execution result:\n${JSON.stringify(result.result, null, 2)}\n\nConsole output:\n${result.logs.join('\n')}`,
+              text: `Screenshot '${args.name}' taken at ${width}x${height}`,
+            },
+            {
+              type: "image",
+              data: screenshot,
+              mimeType: "image/png",
             },
           ],
           isError: false,
         };
       }
-      catch (error) {
+      case "puppeteer_click":
+        try {
+          await page.click(args.selector);
+          return {
+            content: [{
+              type: "text",
+              text: `Clicked ${args.selector}`,
+            }],
+            isError: false,
+          };
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: "text",
+              text: `Failed to click ${args.selector}: ${errorMessage}`,
+            }],
+            isError: true,
+          };
+        }
+      case "puppeteer_fill":
+        try {
+          await page.waitForSelector(args.selector);
+          await page.type(args.selector, args.value);
+          return {
+            content: [{
+              type: "text",
+              text: `Filled ${args.selector} with: ${args.value}`,
+            }],
+            isError: false,
+          };
+        }
+        catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: "text",
+              text: `Failed to fill ${args.selector}: ${errorMessage}`,
+            }],
+            isError: true,
+          };
+        }
+      case "puppeteer_select":
+        try {
+          await page.waitForSelector(args.selector);
+          await page.select(args.selector, args.value);
+          return {
+            content: [{
+              type: "text",
+              text: `Selected ${args.selector} with: ${args.value}`,
+            }],
+            isError: false,
+          };
+        }
+        catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: "text",
+              text: `Failed to select ${args.selector}: ${errorMessage}`,
+            }],
+            isError: true,
+          };
+        }
+      case "puppeteer_hover":
+        try {
+          await page.waitForSelector(args.selector);
+          await page.hover(args.selector);
+          return {
+            content: [{
+              type: "text",
+              text: `Hovered ${args.selector}`,
+            }],
+            isError: false,
+          };
+        }
+        catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            content: [{
+              type: "text",
+              text: `Failed to hover ${args.selector}: ${errorMessage}`,
+            }],
+            isError: true,
+          };
+        }
+      case "puppeteer_evaluate": {
+        const logs: string[] = [];
+        const originalConsole = { ...console };
+        const consoleMethods = ['log', 'info', 'warn', 'error', 'debug'] as const;
+        
+        for (const method of consoleMethods) {
+          const originalMethod = originalConsole[method];
+          (console as any)[method] = (...args: any[]) => {
+            logs.push(`[${method}] ${args.join(' ')}`);
+            originalMethod.apply(console, args);
+          };
+        }
+
+        try {
+          const result = await page.evaluate((script: string) => {
+            return eval(script);
+          }, args.script);
+
+          // Restore original console methods
+          for (const method of consoleMethods) {
+            (console as any)[method] = originalConsole[method];
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: `Script executed successfully. Result: ${JSON.stringify(result)}`,
+            }],
+            isError: false,
+          };
+        } catch (error: unknown) {
+          // Restore original console methods even if there's an error
+          for (const method of consoleMethods) {
+            (console as any)[method] = originalConsole[method];
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: `Script execution failed: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+      default:
         return {
           content: [{
             type: "text",
-            text: `Script execution failed: ${error.message}`,
+            text: `Unknown tool: ${name}`,
           }],
           isError: true,
         };
-      }
-    default:
-      return {
-        content: [{
-          type: "text",
-          text: `Unknown tool: ${name}`,
-        }],
-        isError: true,
-      };
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      content: [{
+        type: "text",
+        text: `Tool execution failed: ${errorMessage}`,
+      }],
+      isError: true,
+    };
   }
 }
 
