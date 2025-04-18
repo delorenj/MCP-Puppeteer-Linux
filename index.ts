@@ -6,12 +6,24 @@ import puppeteer from "puppeteer";
 import { platform } from 'os';
 import { execSync } from 'child_process';
 
-// Function to detect X11 environment
-function getX11Environment() {
+// Function to detect display environment
+function getDisplayEnvironment() {
   if (platform() !== 'linux') return process.env;
 
   try {
-    // Try to get the current user
+    // Check if we're running under Wayland
+    const sessionType = process.env.XDG_SESSION_TYPE;
+    if (sessionType === 'wayland') {
+      return {
+        ...process.env,
+        MOZ_ENABLE_WAYLAND: '1',
+        QT_QPA_PLATFORM: 'wayland',
+        GDK_BACKEND: 'wayland',
+        PUPPETEER_PRODUCT: 'firefox'
+      };
+    }
+
+    // X11 environment detection
     const username = execSync('whoami').toString().trim();
     const uid = process.getuid?.();
     if (uid === undefined) {
@@ -87,20 +99,14 @@ function getX11Environment() {
 
     return env;
   } catch (error) {
-    console.error('Failed to get X11 environment:', error);
-    return {
-      ...process.env,
-      DISPLAY: ':0'
-    };
+    console.error('Failed to get display environment:', error);
+    return process.env;
   }
 }
 
 // Get environment once at startup
-const processEnvironment = getX11Environment();
-console.error('X11 Environment:', {
-  DISPLAY: processEnvironment.DISPLAY,
-  XAUTHORITY: processEnvironment.XAUTHORITY
-});
+const processEnvironment = getDisplayEnvironment();
+console.error('Display Environment:', processEnvironment);
 
 // Define the tools once to avoid repetition
 const TOOLS = [
@@ -196,10 +202,17 @@ const screenshots = new Map<string, string>();
 
 async function ensureBrowser(): Promise<puppeteer.Page> {
   if (!browser) {
-    browser = await puppeteer.launch({
+    const options: puppeteer.BrowserLaunchArgumentOptions & puppeteer.LaunchOptions = {
       headless: false,
-      env: processEnvironment  // Pass the X11 environment variables
-    });
+      env: processEnvironment
+    };
+
+    // If we're using Firefox under Wayland
+    if (processEnvironment.PUPPETEER_PRODUCT === 'firefox') {
+      options.product = 'firefox';
+    }
+
+    browser = await puppeteer.launch(options);
     const pages = await browser.pages();
     page = pages[0];
     page.on("console", (msg) => {

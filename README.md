@@ -84,33 +84,32 @@ The server provides access to two types of resources:
 
 ## Installation
 
-### Installing via Smithery
-
-To install Puppeteer Linux for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@PhialsBasement/mcp-puppeteer-linux):
-
-```bash
-npx -y @smithery/cli install @PhialsBasement/mcp-puppeteer-linux --client claude
-```
+### Automated Installation
+1. Clone this repository
+2. Run `pnpm install` (or `npm install`)
+3. Start the server with `pnpm start` (or `npm start`)
 
 ### Manual Installation
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/PhialsBasement/MCP-Puppeteer-Linux.git
-```
-
+1. Clone this repository
 2. Install dependencies:
-
-```bash
-pnpm install
-```
-
+   ```bash
+   pnpm install
+   ```
 3. Start the server:
+   ```bash
+   pnpm start
+   # or if you prefer to use tsx directly:
+   pnpm tsx index.ts
+   ```
 
+## Configuration
+
+The server can be started with:
 ```bash
 pnpm start
 ```
+
+This will start a Model Context Protocol server that communicates over stdio. The server is meant to be used as a subprocess by MCP clients.
 
 ## Display Server Details
 
